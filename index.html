@@ -76,9 +76,16 @@ textarea{width:100%;height:340px;font-family:Consolas,monospace;font-size:13px}
     <div class="card">
       <h2>Twoja lista etykiet (<span id="cnt">0</span>)</h2>
       <textarea id="list" oninput="update()" placeholder="Jedna etykieta w wierszu. Dwie linie na etykiecie: użyj znaku | (np. -Q1|Wyłącznik główny)"></textarea>
+      <div style="margin-top:8px;padding:8px;background:#eaf2fb;border-radius:6px">
+        <label style="font-size:14px;font-weight:600">Na kabel?
+          <select id="mode" onchange="update()" style="font-size:15px">
+            <option value="normal">Nie – zwykła etykieta</option>
+            <option value="wrap">Tak – na kabel (opis 2×, widoczny z obu stron)</option>
+          </select>
+        </label>
+        <input type="hidden" id="gap" value="3">
+      </div>
       <div class="row" style="margin-top:8px">
-        <label>Rodzaj etykiety<select id="mode" onchange="document.getElementById('gap').value=this.value==='flag'?10:4;update()"><option value="normal">Zwykła</option><option value="wrap">Na przewód (tekst 2×, owijana)</option><option value="flag">Chorągiewka (tekst – przerwa – tekst)</option></select></label>
-        <label>Przerwa (spacje)<input type="number" id="gap" value="4" min="1" max="30" oninput="update()"></label>
         <label>Powtórz każdą x<input type="number" id="rep" value="1" min="1" oninput="update()"></label>
         <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="hd" checked> nagłówek „Etykieta”</label>
         <button class="s" onclick="document.getElementById('list').value='';update()">Wyczyść</button>
@@ -96,19 +103,19 @@ textarea{width:100%;height:340px;font-family:Consolas,monospace;font-size:13px}
 /* ---------- baza gotowych wzorów ---------- */
 const range=(p,a,b,d=1,s='')=>{const o=[];for(let i=a;i<=b;i++)o.push(p+String(i).padStart(d,'0')+s);return o};
 const CATS={
- 'Zasilanie i potencjały':['L1','L2','L3','N','PE','L1/L2/L3','230V AC','400V AC','24V DC','+24V','0V','GND','12V DC','5V DC','+','-','PE/N','Zasilanie główne','Zasilanie sterowania','Zasilanie awaryjne'],
- 'Aparatura (oznaczenia)':[...range('-F',1,10),...range('-Q',1,10),...range('-K',1,10),...range('-KM',1,10),...range('-S',1,10),...range('-T',1,5),...range('-A',1,10),...range('-PS',1,4),...range('-X',1,10),...range('-M',1,10),...range('-B',1,10),...range('-H',1,10),...range('-Y',1,10)],
+ 'Zasilanie':['L1','L2','L3','N','PE','230V AC','400V AC','24V DC','+24V','0V','GND','12V DC','5V DC','+','-'],
+ 'Aparatura':[...range('-F',1,10),...range('-Q',1,10),...range('-K',1,10),...range('-KM',1,10),...range('-S',1,10),...range('-T',1,5),...range('-A',1,10),...range('-PS',1,4),...range('-X',1,10),...range('-M',1,10),...range('-B',1,10),...range('-H',1,10),...range('-Y',1,10)],
  'Listwy zaciskowe':[...range('X1:',1,24),...range('X2:',1,24),'PE','N','L','L1','L2','L3','24V','0V'],
- 'Wejścia / wyjścia PLC':[...range('I0.',0,7),...range('I1.',0,7),...range('Q0.',0,7),...range('Q1.',0,7),...range('DI',1,16,2),...range('DO',1,16,2),...range('AI',1,8,2),...range('AO',1,8,2),...range('%IX0.',0,7),...range('%QX0.',0,7)],
- 'Czujniki i elementy polowe':['Czujnik indukcyjny','Czujnik pojemnościowy','Czujnik optyczny','Krańcówka','Czujnik temperatury','Czujnik ciśnienia','Czujnik poziomu','Enkoder','Przetwornik 4-20mA','Przetwornik 0-10V','PT100','Termopara K','Presostat','Przepływomierz','Barierka świetlna','Czujnik zbliżeniowy'],
- 'Napędy i silniki':['Silnik','Falownik','Softstart','Serwonapęd','Silnik krokowy','Pompa','Wentylator','Sprężarka','Przenośnik','Zawór elektromagnetyczny','Siłownik','Grzałka','Hamulec','Dławik','Filtr EMC','Rezystor hamujący'],
- 'Przyciski START / STOP / RESET':['START','STOP','RESET','STOP AWARYJNY','E-STOP','AUTO','RĘCZNY','AUTO/RĘCZNY','AUTO/MAN','LOKALNY','ZDALNY','LOK/ZDAL','PRACA','POSTÓJ','PAUZA','POTWIERDŹ','KWITUJ','TEST','TEST LAMPEK','ZAŁ','WYŁ','ON','OFF','I','0','1','OTWÓRZ','ZAMKNIJ','GÓRA','DÓŁ','LEWO','PRAWO','DO PRZODU','DO TYŁU','JOG +','JOG -','HOME','ZEROWANIE','ZWOLNIJ HAMULEC','PRĘDKOŚĆ +','PRĘDKOŚĆ -','CYKL','CYKL JEDNORAZOWY','CYKL CIĄGŁY','ODBLOKUJ','ZABLOKUJ','WYBÓR TRYBU','ZASILANIE STEROWANIA','ZASILANIE MOCY'],
- 'Sygnalizacja (lampki)':['GOTOWE','PRACA','AWARIA','ALARM','OSTRZEŻENIE','ZASILANIE OK','BRAK ZASILANIA','USTERKA','PRZECIĄŻENIE','ZA WYSOKA TEMP.','NISKI POZIOM','WYSOKI POZIOM','BRAK CIŚNIENIA','OTWARTE','ZAMKNIĘTE','AUTO','RĘCZNY','SERWIS','ZABLOKOWANE','BEZPIECZEŃSTWO OK','E-STOP AKTYWNY'],
- 'Ostrzeżenia i bezpieczeństwo':['UWAGA! NAPIĘCIE','UWAGA! WYSOKIE NAPIĘCIE','NIE WŁĄCZAĆ','NIE WYŁĄCZAĆ','Niebezpieczeństwo porażenia','Tylko dla służb UR','Praca pod napięciem zabroniona','Odłączyć zasilanie przed pracą','Uziemienie','PE – uziemienie ochronne','Wyłącznik główny','Wyłącznik awaryjny','Zasilanie obce 24V','Zasilanie obce 230V','Sprawdź przed uruchomieniem','Gorąca powierzchnia'],
- 'Komunikacja i sieć':['Profinet','Profibus','Modbus RTU','Modbus TCP','RS485','RS232','Ethernet','CAN','EtherCAT','IO-Link','HMI','PLC','Switch','Router','Port 1','Port 2','Port 3','Port 4','IP: 192.168.0.1','IP: 192.168.0.10'],
- 'Szafa i rozdzielnia':['Szafa sterownicza','Rozdzielnia główna','Rozdzielnia podrzędna','Skrzynka zaciskowa','Szafa zasilająca','Szafa napędowa','Pulpit operatorski','Panel HMI','Rozdzielnia RG','Rozdzielnia RP','Obwody sterowania','Obwody mocy','Rezerwa','Wolne'],
- 'Oznaczenia przewodów (do oklejania)':[...range('W',1,20,3),...range('L1-',1,10),...range('L2-',1,10),...range('L3-',1,10),...range('N-',1,10),...range('PE-',1,10),...range('+24V-',1,10),...range('0V-',1,10),...range('1.',1,20),...range('A',1,20),'L1','L2','L3','N','PE','+24V','0V','24V DC','230V AC','U','V','W','U1','V1','W1','PE-M1','START','STOP','E-STOP','AUTO','RESET','I0.0','I0.1','Q0.0','Q0.1','AI1','AO1','RS485 A','RS485 B','ETH 1','ETH 2','CAN H','CAN L','TX','RX'],
- 'Przewody (typowe)':['LiYY','LiYCY','YKY','YDY','H07V-K','H05V-K','OZ-Flex','Ethernet Cat5e','Ethernet Cat6','Ekranowany','Czarny – L','Niebieski – N','Żółto-zielony – PE','Brązowy – L1','Szary – L3','Czerwony – 24V','Niebieski – 0V']
+ 'Wejścia / wyjścia PLC':[...range('I0.',0,7),...range('I1.',0,7),...range('Q0.',0,7),...range('Q1.',0,7),...range('DI',1,16,2),...range('DO',1,16,2),...range('AI',1,8,2),...range('AO',1,8,2)],
+ 'Czujniki':['Indukcyjny','Pojemnoś.','Optyczny','Krańcówka','Temp.','Ciśnienie','Poziom','Enkoder','4-20mA','0-10V','PT100','Term. K','Presostat','Przepływ','Barierka'],
+ 'Napędy':['Silnik','Falownik','Softstart','Serwo','Krokowy','Pompa','Wentyl.','Sprężarka','Taśma','Zawór','Siłownik','Grzałka','Hamulec','Dławik','Filtr EMC'],
+ 'START / STOP / RESET':['START','STOP','RESET','E-STOP','AUTO','RĘCZNY','AUTO/MAN','LOKALNY','ZDALNY','PRACA','POSTÓJ','PAUZA','POTWIERDŹ','KWITUJ','TEST','ZAŁ','WYŁ','ON','OFF','I','0','1','OTWÓRZ','ZAMKNIJ','GÓRA','DÓŁ','LEWO','PRAWO','JOG +','JOG -','HOME','CYKL','ODBLOKUJ','ZABLOKUJ'],
+ 'Sygnalizacja':['GOTOWE','PRACA','AWARIA','ALARM','OSTRZEŻ.','ZASIL. OK','BRAK ZASIL.','USTERKA','PRZECIĄŻ.','NISKI POZ.','WYSOKI POZ.','BRAK CIŚN.','OTWARTE','ZAMKNIĘTE','SERWIS','ZABLOKOW.'],
+ 'Ostrzeżenia':['UWAGA! NAPIĘCIE','NIE WŁĄCZAĆ','NIE WYŁĄCZAĆ','NAPIĘCIE OBCE','UZIEMIENIE','WYŁ. GŁÓWNY','WYŁ. AWARYJNY','GORĄCE','230V AC OBCE','24V OBCE'],
+ 'Komunikacja':['Profinet','Profibus','Modbus','RS485','RS232','Ethernet','CAN','EtherCAT','IO-Link','HMI','PLC','Switch','Router','Port 1','Port 2','Port 3','Port 4','RS485 A','RS485 B','CAN H','CAN L','TX','RX'],
+ 'Szafa':['Szafa ster.','Rozdz. główna','Rozdz. RP','Skrz. zacisk.','Szafa zasil.','Szafa napęd.','Pulpit','Panel HMI','Obw. ster.','Obw. mocy','Rezerwa','Wolne'],
+ 'Przewody (numeracja)':[...range('W',1,20,3),...range('1.',1,20),...range('A',1,20),'U','V','W','U1','V1','W1','PE-M1'],
+ 'Typy przewodów':['LiYY','LiYCY','YKY','YDY','H07V-K','H05V-K','OZ-Flex','Cat5e','Cat6','Ekran']
 };
 
 /* ---------- UI ---------- */
