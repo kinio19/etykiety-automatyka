@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Etykiety automatyka – Niimbot D11 (XLSX)</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f4e78">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+*{box-sizing:border-box}
+body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f3f5f8;color:#222}
+header{background:#1f4e78;color:#fff;padding:12px 20px}
+header h1{margin:0;font-size:20px}
+header small{opacity:.85}
+main{display:grid;grid-template-columns:1fr 360px;gap:16px;padding:16px;max-width:1300px;margin:auto}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 3px #0002;padding:14px;margin-bottom:14px}
+.card h2{margin:0 0 10px;font-size:16px;color:#1f4e78}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid #1f4e78;color:#1f4e78;background:#fff;border-radius:16px;padding:4px 10px;cursor:pointer;font-size:13px;user-select:none}
+.chip:hover{background:#e3eefa}
+.chip.all{background:#1f4e78;color:#fff}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+label{font-size:12px;display:flex;flex-direction:column;gap:2px}
+input,textarea,select{padding:6px;border:1px solid #bbb;border-radius:4px;font:inherit}
+input[type=number]{width:80px}
+input.t{width:110px}
+button{background:#1f4e78;color:#fff;border:0;border-radius:4px;padding:8px 14px;cursor:pointer;font:inherit}
+button.s{background:#6b7c8f}
+button.g{background:#2e8b57;font-size:16px;padding:12px;width:100%}
+button:hover{filter:brightness(1.15)}
+textarea{width:100%;height:340px;font-family:Consolas,monospace;font-size:13px}
+.prev{display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow:auto;margin-top:8px}
+.lab{border:1px solid #333;border-radius:4px;width:160px;height:48px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:600;background:#fff;font-size:15px;line-height:1.1;white-space:pre;overflow:hidden}
+.lab.long{border:2px solid #d33;color:#d33}
+.hint{font-size:12px;color:#666;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Etykiety do automatyki – Niimbot D11</h1>
+  <small>Kliknij gotowe wzory, uzupełnij listę po prawej i pobierz plik XLSX (jedna etykieta = jeden wiersz, kolumna A).</small>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>Generator numeracji</h2>
+      <div class="row">
+        <label>Prefiks<input class="t" id="gp" value="-K"></label>
+        <label>Od<input type="number" id="gf" value="1"></label>
+        <label>Do<input type="number" id="gt" value="10"></label>
+        <label>Cyfry<input type="number" id="gd" value="1" min="1"></label>
+        <label>Sufiks<input class="t" id="gs"></label>
+        <button onclick="genRange()">Dodaj zakres</button>
+      </div>
+      <div class="hint">Np. prefiks „X1:” 1–24 → X1:1 … X1:24; prefiks „I0.” 0–7 → I0.0 … I0.7.</div>
+    </div>
+    <div class="card">
+      <h2>Przewody / strefy (od → do)</h2>
+      <div class="row">
+        <label>Nr przewodu (prefiks)<input class="t" id="wp" value="W"></label>
+        <label>Od nr<input type="number" id="wf" value="1"></label>
+        <label>Do nr<input type="number" id="wt" value="10"></label>
+        <label>Źródło<input class="t" id="wa" value="-A1:Q0.0"></label>
+        <label>Cel<input class="t" id="wb" value="-K1:A1"></label>
+        <label><span>Dwie linie</span><input type="checkbox" id="w2" checked></label>
+        <button onclick="genWires()">Dodaj</button>
+      </div>
+    </div>
+    <div id="cats"></div>
+  </section>
+  <aside>
+    <div class="card">
+      <h2>Twoja lista etykiet (<span id="cnt">0</span>)</h2>
+      <textarea id="list" oninput="update()" placeholder="Jedna etykieta w wierszu. Dwie linie na etykiecie: użyj znaku | (np. -Q1|Wyłącznik główny)"></textarea>
+      <div class="row" style="margin-top:8px">
+        <label>Powtórz każdą x<input type="number" id="rep" value="1" min="1" oninput="update()"></label>
+        <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="hd" checked> nagłówek „Etykieta”</label>
+        <button class="s" onclick="document.getElementById('list').value='';update()">Wyczyść</button>
+      </div>
+      <div class="hint">Znak | zostanie zamieniony na nowy wiersz w komórce (2 linie na etykiecie).</div>
+      <div class="hint">Podgląd w proporcji etykiety 40×12 mm. Max ok. 16 znaków w jednej linii lub 2 linie po ok. 24 znaki.</div>
+      <div class="hint" id="warn" style="color:#d33;font-weight:600"></div>
+      <div class="prev" id="prev"></div>
+      <div style="margin-top:10px"><button class="g" onclick="download()">⬇ Pobierz XLSX</button></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* ---------- baza gotowych wzorów ---------- */
+const range=(p,a,b,d=1,s='')=>{const o=[];for(let i=a;i<=b;i++)o.push(p+String(i).padStart(d,'0')+s);return o};
+const CATS={
+ 'Zasilanie i potencjały':['L1','L2','L3','N','PE','L1/L2/L3','230V AC','400V AC','24V DC','+24V','0V','GND','12V DC','5V DC','+','-','PE/N','Zasilanie główne','Zasilanie sterowania','Zasilanie awaryjne'],
+ 'Aparatura (oznaczenia)':[...range('-F',1,10),...range('-Q',1,10),...range('-K',1,10),...range('-KM',1,10),...range('-S',1,10),...range('-T',1,5),...range('-A',1,10),...range('-PS',1,4),...range('-X',1,10),...range('-M',1,10),...range('-B',1,10),...range('-H',1,10),...range('-Y',1,10)],
+ 'Listwy zaciskowe':[...range('X1:',1,24),...range('X2:',1,24),'PE','N','L','L1','L2','L3','24V','0V'],
+ 'Wejścia / wyjścia PLC':[...range('I0.',0,7),...range('I1.',0,7),...range('Q0.',0,7),...range('Q1.',0,7),...range('DI',1,16,2),...range('DO',1,16,2),...range('AI',1,8,2),...range('AO',1,8,2),...range('%IX0.',0,7),...range('%QX0.',0,7)],
+ 'Czujniki i elementy polowe':['Czujnik indukcyjny','Czujnik pojemnościowy','Czujnik optyczny','Krańcówka','Czujnik temperatury','Czujnik ciśnienia','Czujnik poziomu','Enkoder','Przetwornik 4-20mA','Przetwornik 0-10V','PT100','Termopara K','Presostat','Przepływomierz','Barierka świetlna','Czujnik zbliżeniowy'],
+ 'Napędy i silniki':['Silnik','Falownik','Softstart','Serwonapęd','Silnik krokowy','Pompa','Wentylator','Sprężarka','Przenośnik','Zawór elektromagnetyczny','Siłownik','Grzałka','Hamulec','Dławik','Filtr EMC','Rezystor hamujący'],
+ 'Przyciski START / STOP / RESET':['START','STOP','RESET','STOP AWARYJNY','E-STOP','AUTO','RĘCZNY','AUTO/RĘCZNY','AUTO/MAN','LOKALNY','ZDALNY','LOK/ZDAL','PRACA','POSTÓJ','PAUZA','POTWIERDŹ','KWITUJ','TEST','TEST LAMPEK','ZAŁ','WYŁ','ON','OFF','I','0','1','OTWÓRZ','ZAMKNIJ','GÓRA','DÓŁ','LEWO','PRAWO','DO PRZODU','DO TYŁU','JOG +','JOG -','HOME','ZEROWANIE','ZWOLNIJ HAMULEC','PRĘDKOŚĆ +','PRĘDKOŚĆ -','CYKL','CYKL JEDNORAZOWY','CYKL CIĄGŁY','ODBLOKUJ','ZABLOKUJ','WYBÓR TRYBU','ZASILANIE STEROWANIA','ZASILANIE MOCY'],
+ 'Sygnalizacja (lampki)':['GOTOWE','PRACA','AWARIA','ALARM','OSTRZEŻENIE','ZASILANIE OK','BRAK ZASILANIA','USTERKA','PRZECIĄŻENIE','ZA WYSOKA TEMP.','NISKI POZIOM','WYSOKI POZIOM','BRAK CIŚNIENIA','OTWARTE','ZAMKNIĘTE','AUTO','RĘCZNY','SERWIS','ZABLOKOWANE','BEZPIECZEŃSTWO OK','E-STOP AKTYWNY'],
+ 'Ostrzeżenia i bezpieczeństwo':['UWAGA! NAPIĘCIE','UWAGA! WYSOKIE NAPIĘCIE','NIE WŁĄCZAĆ','NIE WYŁĄCZAĆ','Niebezpieczeństwo porażenia','Tylko dla służb UR','Praca pod napięciem zabroniona','Odłączyć zasilanie przed pracą','Uziemienie','PE – uziemienie ochronne','Wyłącznik główny','Wyłącznik awaryjny','Zasilanie obce 24V','Zasilanie obce 230V','Sprawdź przed uruchomieniem','Gorąca powierzchnia'],
+ 'Komunikacja i sieć':['Profinet','Profibus','Modbus RTU','Modbus TCP','RS485','RS232','Ethernet','CAN','EtherCAT','IO-Link','HMI','PLC','Switch','Router','Port 1','Port 2','Port 3','Port 4','IP: 192.168.0.1','IP: 192.168.0.10'],
+ 'Szafa i rozdzielnia':['Szafa sterownicza','Rozdzielnia główna','Rozdzielnia podrzędna','Skrzynka zaciskowa','Szafa zasilająca','Szafa napędowa','Pulpit operatorski','Panel HMI','Rozdzielnia RG','Rozdzielnia RP','Obwody sterowania','Obwody mocy','Rezerwa','Wolne'],
+ 'Przewody (typowe)':['LiYY','LiYCY','YKY','YDY','H07V-K','H05V-K','OZ-Flex','Ethernet Cat5e','Ethernet Cat6','Ekranowany','Czarny – L','Niebieski – N','Żółto-zielony – PE','Brązowy – L1','Szary – L3','Czerwony – 24V','Niebieski – 0V']
+};
+
+/* ---------- UI ---------- */
+const $=id=>document.getElementById(id);
+const cats=$('cats');
+for(const [name,items] of Object.entries(CATS)){
+  const card=document.createElement('div');card.className='card';
+  const h=document.createElement('h2');h.textContent=name;card.appendChild(h);
+  const box=document.createElement('div');box.className='chips';
+  const all=document.createElement('span');all.className='chip all';all.textContent='+ całą grupę';
+  all.onclick=()=>add(items);box.appendChild(all);
+  for(const it of items){
+    const c=document.createElement('span');c.className='chip';c.textContent=it;
+    c.onclick=()=>add([it]);box.appendChild(c);
+  }
+  card.appendChild(box);cats.appendChild(card);
+}
+function add(arr){
+  const t=$('list');
+  t.value=(t.value&&!t.value.endsWith('\n')?t.value+'\n':t.value)+arr.join('\n');
+  update();
+}
+function genRange(){
+  const a=+$('gf').value,b=+$('gt').value;
+  if(isNaN(a)||isNaN(b)||b<a||b-a>999)return alert('Niepoprawny zakres (max 1000).');
+  add(range($('gp').value,a,b,+$('gd').value||1,$('gs').value));
+}
+function genWires(){
+  const a=+$('wf').value,b=+$('wt').value;
+  if(isNaN(a)||isNaN(b)||b<a||b-a>999)return alert('Niepoprawny zakres (max 1000).');
+  const out=[];
+  for(let i=a;i<=b;i++){
+    const n=$('wp').value+String(i).padStart(3,'0');
+    const ft=$('wa').value+' → '+$('wb').value;
+    out.push($('w2').checked?n+'|'+ft:n+' '+ft);
+  }
+  add(out);
+}
+function getLabels(){
+  const rep=Math.max(1,+$('rep').value||1);
+  const base=$('list').value.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>s.replace(/\|/g,'\n'));
+  const out=[];for(const l of base)for(let i=0;i<rep;i++)out.push(l);
+  return out;
+}
+function update(){
+  const l=getLabels();$('cnt').textContent=l.length;
+  const p=$('prev');p.innerHTML='';
+  l.slice(0,150).forEach(x=>{const d=document.createElement('div');d.className='lab';d.textContent=x;
+    const ls=x.split('\n'),max=Math.max(...ls.map(s=>s.length));
+    d.style.fontSize=(ls.length>1?11:Math.max(9,Math.min(18,150/Math.max(max,1)*1.6)))+'px';
+    if(ls.length>2||max>(ls.length>1?24:16))d.classList.add('long');
+    p.appendChild(d)});
+  const bad=l.filter(x=>{const ls=x.split('\n');return ls.length>2||Math.max(...ls.map(s=>s.length))>(ls.length>1?24:16)}).length;
+  $('warn').textContent=bad?'⚠ '+bad+' etykiet może nie zmieścić się na 40×12 mm (czerwone ramki) – skróć tekst.':'';
+}
+function download(){
+  const l=getLabels();if(!l.length)return alert('Lista jest pusta.');
+  const rows=$('hd').checked?['Etykieta',...l]:l;
+  const blob=new Blob([makeXlsx(rows)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='etykiety_niimbot_d11.xlsx';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+/* ---------- minimalny generator XLSX (bez bibliotek, działa offline) ---------- */
+//XLSX-START
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
+function zipStore(files){
+  const enc=new TextEncoder(),parts=[],central=[];let off=0;
+  const u16=v=>[v&255,(v>>8)&255],u32=v=>[v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255];
+  for(const [name,text] of files){
+    const nb=enc.encode(name),data=enc.encode(text),crc=crc32(data);
+    const lh=new Uint8Array([0x50,0x4b,3,4,...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),...u16(0)]);
+    parts.push(lh,nb,data);
+    central.push(new Uint8Array([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0x0800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nb);
+    off+=lh.length+nb.length+data.length;
+  }
+  let csize=0;for(const c of central)csize+=c.length;
+  const end=new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(files.length),...u16(files.length),...u32(csize),...u32(off),0,0]);
+  return new Uint8Array(await_concat([...parts,...central,end]));
+}
+function await_concat(arrs){let n=0;for(const a of arrs)n+=a.length;const o=new Uint8Array(n);let p=0;for(const a of arrs){o.set(a,p);p+=a.length}return o}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'')}
+function makeXlsx(rows){
+  const sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols><col min="1" max="1" width="40" customWidth="1"/></cols><sheetData>'+
+    rows.map((r,i)=>'<row r="'+(i+1)+'"><c r="A'+(i+1)+'" t="inlineStr"><is><t xml:space="preserve">'+esc(r)+'</t></is></c></row>').join('')+'</sheetData></worksheet>';
+  return zipStore([
+   ['[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>'],
+   ['_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+   ['xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Etykiety" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+   ['xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
+   ['xl/worksheets/sheet1.xml',sheet]
+  ]);
+}
+//XLSX-END
+add(['L1','L2','L3','N','PE','24V','0V']);
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
