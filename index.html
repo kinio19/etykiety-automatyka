@@ -106,6 +106,13 @@ aside{position:sticky;top:8px;align-self:start}
             <option value="wrap">Tak – na kabel (opis 2×, widoczny z obu stron)</option>
           </select>
         </label>
+        <label style="margin-top:4px">Linia na osi (środek)
+          <select id="sep" onchange="update()" style="font-size:15px">
+            <option value="¦">¦ przerywana</option>
+            <option value="|">| ciągła</option>
+            <option value="">brak</option>
+          </select>
+        </label>
         <input type="hidden" id="gap" value="3">
       </div>
       <div class="row" style="margin-top:8px">
@@ -180,7 +187,7 @@ function genWires(){
 function getLabels(){
   const rep=Math.max(1,+$('rep').value||1);
   const base=$('list').value.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>s.replace(/\|/g,'\n'));
-  const mode=$('mode').value,gap=' '.repeat(Math.max(1,+$('gap').value||1));
+  const mode=$('mode').value,sp=$('sep').value,gap=sp?' '+sp+' ':' '.repeat(Math.max(1,+$('gap').value||1));
   const tf=l=>mode==='normal'?l:l.split('\n').map(s=>s+gap+s).join('\n');
   const out=[];for(const l of base)for(let i=0;i<rep;i++)out.push(tf(l));
   return out;
