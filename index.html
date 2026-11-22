@@ -77,6 +77,8 @@ textarea{width:100%;height:340px;font-family:Consolas,monospace;font-size:13px}
       <h2>Twoja lista etykiet (<span id="cnt">0</span>)</h2>
       <textarea id="list" oninput="update()" placeholder="Jedna etykieta w wierszu. Dwie linie na etykiecie: użyj znaku | (np. -Q1|Wyłącznik główny)"></textarea>
       <div class="row" style="margin-top:8px">
+        <label>Rodzaj etykiety<select id="mode" onchange="document.getElementById('gap').value=this.value==='flag'?10:4;update()"><option value="normal">Zwykła</option><option value="wrap">Na przewód (tekst 2×, owijana)</option><option value="flag">Chorągiewka (tekst – przerwa – tekst)</option></select></label>
+        <label>Przerwa (spacje)<input type="number" id="gap" value="4" min="1" max="30" oninput="update()"></label>
         <label>Powtórz każdą x<input type="number" id="rep" value="1" min="1" oninput="update()"></label>
         <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="hd" checked> nagłówek „Etykieta”</label>
         <button class="s" onclick="document.getElementById('list').value='';update()">Wyczyść</button>
@@ -105,6 +107,7 @@ const CATS={
  'Ostrzeżenia i bezpieczeństwo':['UWAGA! NAPIĘCIE','UWAGA! WYSOKIE NAPIĘCIE','NIE WŁĄCZAĆ','NIE WYŁĄCZAĆ','Niebezpieczeństwo porażenia','Tylko dla służb UR','Praca pod napięciem zabroniona','Odłączyć zasilanie przed pracą','Uziemienie','PE – uziemienie ochronne','Wyłącznik główny','Wyłącznik awaryjny','Zasilanie obce 24V','Zasilanie obce 230V','Sprawdź przed uruchomieniem','Gorąca powierzchnia'],
  'Komunikacja i sieć':['Profinet','Profibus','Modbus RTU','Modbus TCP','RS485','RS232','Ethernet','CAN','EtherCAT','IO-Link','HMI','PLC','Switch','Router','Port 1','Port 2','Port 3','Port 4','IP: 192.168.0.1','IP: 192.168.0.10'],
  'Szafa i rozdzielnia':['Szafa sterownicza','Rozdzielnia główna','Rozdzielnia podrzędna','Skrzynka zaciskowa','Szafa zasilająca','Szafa napędowa','Pulpit operatorski','Panel HMI','Rozdzielnia RG','Rozdzielnia RP','Obwody sterowania','Obwody mocy','Rezerwa','Wolne'],
+ 'Oznaczenia przewodów (do oklejania)':[...range('W',1,20,3),...range('L1-',1,10),...range('L2-',1,10),...range('L3-',1,10),...range('N-',1,10),...range('PE-',1,10),...range('+24V-',1,10),...range('0V-',1,10),...range('1.',1,20),...range('A',1,20),'L1','L2','L3','N','PE','+24V','0V','24V DC','230V AC','U','V','W','U1','V1','W1','PE-M1','START','STOP','E-STOP','AUTO','RESET','I0.0','I0.1','Q0.0','Q0.1','AI1','AO1','RS485 A','RS485 B','ETH 1','ETH 2','CAN H','CAN L','TX','RX'],
  'Przewody (typowe)':['LiYY','LiYCY','YKY','YDY','H07V-K','H05V-K','OZ-Flex','Ethernet Cat5e','Ethernet Cat6','Ekranowany','Czarny – L','Niebieski – N','Żółto-zielony – PE','Brązowy – L1','Szary – L3','Czerwony – 24V','Niebieski – 0V']
 };
 
@@ -147,7 +150,9 @@ function genWires(){
 function getLabels(){
   const rep=Math.max(1,+$('rep').value||1);
   const base=$('list').value.split('\n').map(s=>s.trim()).filter(Boolean).map(s=>s.replace(/\|/g,'\n'));
-  const out=[];for(const l of base)for(let i=0;i<rep;i++)out.push(l);
+  const mode=$('mode').value,gap=' '.repeat(Math.max(1,+$('gap').value||1));
+  const tf=l=>mode==='normal'?l:l.split('\n').map(s=>s+gap+s).join('\n');
+  const out=[];for(const l of base)for(let i=0;i<rep;i++)out.push(tf(l));
   return out;
 }
 function update(){
