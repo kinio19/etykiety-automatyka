@@ -110,7 +110,7 @@ aside{position:sticky;top:8px;align-self:start}
       </div>
       <div class="row" style="margin-top:8px">
         <label>Powtórz każdą x<input type="number" id="rep" value="1" min="1" oninput="update()"></label>
-        <label style="flex-direction:row;align-items:center;gap:4px"><input type="checkbox" id="hd" checked> nagłówek „Etykieta”</label>
+        <input type="checkbox" id="hd" checked hidden>
         <button class="s" onclick="document.getElementById('list').value='';update()">Wyczyść</button>
       </div>
       <div class="hint">Znak | zostanie zamieniony na nowy wiersz w komórce (2 linie na etykiecie).</div>
